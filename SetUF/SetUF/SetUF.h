@@ -23,8 +23,8 @@ public:
 	static void		 deleteSet(SetUF<T>* item);
 	void			 deleteSet();
 	
-	// Destroys all nodes created. Use only for cleanup. Otherwise programmer 
-	// is responsible for deleting object in not SetUF container is used.
+	// Destroys all SetUF created. Use only for cleanup. Otherwise programmer 
+	// is responsible for deleting object.
 	static void destroy();
 
 	~SetUF();
