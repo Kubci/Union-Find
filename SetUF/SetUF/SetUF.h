@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <future>
 
+// Doubly connected union find set data-structure. 
 template <typename T>
 class SetUF
 {
@@ -19,23 +20,28 @@ public:
 	static SetUF<T>* find(SetUF<T>* item);
 	static SetUF<T>* findRec(SetUF<T>* item);
 	static SetUF<T>* findWithoutCompression(SetUF<T>* item);
-	static void	  destroy();
+	static void		 deleteSet(SetUF<T>* item);
+	void			 deleteSet();
 	
+	// Destroys all nodes created. Use only for cleanup. Otherwise programmer 
+	// is responsible for deleting object in not SetUF container is used.
+	static void destroy();
+
 	~SetUF();
 private:
-	static std::vector<SetUF<T>*> all_created;
 	SetUF(T item);
-	
+	static void deleteRec(SetUF<T>* node);
+	static std::unordered_set<SetUF<T>*> all_created;
 };
 
 template <typename T>
-std::vector<SetUF<T>*> SetUF<T>::all_created;
+std::unordered_set<SetUF<T>*> SetUF<T>::all_created;
 
 template <typename T>
 SetUF<T>* SetUF<T>::makeSet(T item)
 {
 	SetUF<T>* singleton = new SetUF<T>(item);
-	all_created.push_back(singleton);
+	all_created.insert(singleton);
 	return singleton;
 }
 
@@ -50,8 +56,7 @@ SetUF<T>* SetUF<T>::unionByRank(SetUF<T>* first, SetUF<T>* second)
 	}
 
 	if (repre_first->rank < repre_second->rank) {
-		SetUF<T>* tmp;
-		tmp = repre_first;
+		SetUF<T> * tmp = repre_first;
 		repre_first = repre_second;
 		repre_second = tmp;
 	}
@@ -62,7 +67,6 @@ SetUF<T>* SetUF<T>::unionByRank(SetUF<T>* first, SetUF<T>* second)
 	repre_first->size += repre_second->size;
 
 	return repre_first;
-
 }
 
 template <typename T>
@@ -91,9 +95,14 @@ SetUF<T>* SetUF<T>::find(SetUF<T>* item)
 template <typename T>
 SetUF<T>* findRec(SetUF<T>* item, std::vector<SetUF<T>*>& successors)
 {
-	if (item->parrent == nullptr) return item;
+	if (item->parrent == nullptr) {
+		item->successors.insert(successors);
+		return item;
+	}
 	successors.insert(item);
-	item->parrent = findRec(item->parrent);
+	item->parrent->successors.erase(item);
+	item->parrent = findRec(item->parrent, successors);
+	return item->parrent;
 }
 
 template <typename T>
@@ -102,10 +111,6 @@ SetUF<T>* SetUF<T>::findRec(SetUF<T>* item)
 	std::vector<SetUF<T>*> to_rewire;
 	SetUF<T>* representant = findRec(item, to_rewire);
 
-	for (SetUF<T>* s : to_rewire)
-	{
-		representant->successors.insert(s);
-	}
 	return representant;
 }
 
@@ -120,6 +125,30 @@ SetUF<T>* SetUF<T>::findWithoutCompression(SetUF<T>* item)
 		current = current->parrent;
 	}
 	return current;
+}
+
+template<typename T>
+void SetUF<T>::deleteRec(SetUF<T>* node)
+{
+	for (SetUF<T>* n : node->successors)
+	{
+		deleteRec(n);
+	}
+	all_created.erase(node);
+	delete node;
+}
+
+template <typename T>
+void SetUF<T>::deleteSet(SetUF<T>* item)
+{
+	SetUF<T>* repre = find(item);
+	deleteRec(repre);
+}
+
+template <typename T>
+void SetUF<T>::deleteSet()
+{
+	deleteSet(find(this));
 }
 
 template <typename T>
